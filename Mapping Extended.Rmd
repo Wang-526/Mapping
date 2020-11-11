@@ -20,8 +20,7 @@ pacman::p_load("tidyverse",
 
 ## prepare FEMA funds data
 ```{r, echo=FALSE, message=FALSE}
-
-fema <- read.csv("hurricane.csv", header = TRUE)
+fema <- read.csv("/Users/mac/Desktop/hurricane.csv", header = TRUE)
 options(scipen=999)
 fema$state <- tolower(fema$state)
 fema$county <- tolower(fema$county)
@@ -41,7 +40,6 @@ stateFund <- stateHurr %>% dplyr::group_by(disaster, region, date) %>% dplyr::se
 
 ```{r}
 kable(head(countyFund)) %>% kableExtra::kable_classic()
-
 ```
 
 ## prepare location
@@ -56,14 +54,24 @@ MainStates <- map_data("county", StatesInt)
 
 # Hurrican Harvey Incident Period August 23, 2017 - September 15, 2017
 harvey <- countyHurr %>% dplyr:: filter((date >= "2017-08-23") & (date <= "2017-09-15"))
+# Make cut
+harvey$cut <- cut(harvey$federalShare/harvey$projectAmount,breaks=c(0,0.25,0.50,0.75,1.00))
 
 # Hurricane Sandy : October 27, 2012 - November 8, 2012
 sandy <- countyHurr %>% dplyr:: filter((date >= "2012-10-27") & (date <= "2012-11-08"))
+# Make cut
+sandy$cut <- cut(sandy$federalShare/sandy$projectAmount,breaks=c(0,0.25,0.50,0.75,1.00))
+
+# Filter the track data
+data("hurr_tracks")
+Track_Harvey <- hurr_tracks %>% dplyr:: filter(storm_id=="Harvey-2017")
+View(Track_Harvey)
+Track_Sandy <- hurr_tracks %>% dplyr:: filter(storm_id=="Sandy-2012")
+View(Track_Sandy)
 ```
 
 ```{r}
 # add locations on fund dataframe
-
 harvey <- merge(MainStates,harvey,by=c("region","subregion"))
 sandy <- merge(MainStates,sandy,by=c("region","subregion"))
 ```
@@ -73,20 +81,29 @@ sandy <- merge(MainStates,sandy,by=c("region","subregion"))
 
 harveyPlot <- ggplot() + 
   geom_polygon(data=MainStates, aes(x=long, y=lat, group=group),colour="black",fill="white")+
-  geom_polygon(data=harvey, aes(x = long, y = lat, group = group, fill = federalShare/projectAmount))+
-  labs(fill="Federal Aid Amount (USD)") + 
+  geom_polygon(data=harvey, aes(x = long, y = lat, group = group, fill = cut))+
+  scale_fill_brewer(palette="Blues")+
+  labs(fill="proportion of obligated fedral fund") + 
+  geom_path(data=Track_Harvey,aes(longitude, latitude),color="red") +
   ggtitle("Harvey-2017") +
+  xlim(c(-110, -65)) + 
+  ylim(c(25, 50)) +
   theme(plot.title = element_text(hjust = 0.5))
 
 harveyPlot
 ```
+
 ### Make map plots of Hurricane Sandy's received federal funds by county
 ```{r}
 sandyPlot <- ggplot() + 
   geom_polygon(data=MainStates, aes(x=long, y=lat, group=group),colour="black",fill="white")+
-  geom_polygon(data=sandy, aes(x = long, y = lat, group = group, fill = federalShare/projectAmount), color = "transparent")+
-  labs(fill="Federal Aid Amount (USD)") + 
+  geom_polygon(data=sandy, aes(x = long, y = lat, group = group, fill = cut))+
+  scale_fill_brewer(palette="yellows")+
+  geom_path(data=Track_Sandy, aes(longitude, latitude),color="red")+
+  labs(fill="proportion of obligated fedral fund") + 
   ggtitle("Sandy-2012") +
+  xlim(c(-110, -65)) + 
+  ylim(c(25, 50)) +
   theme(plot.title = element_text(hjust = 0.5))
 
 sandyPlot
